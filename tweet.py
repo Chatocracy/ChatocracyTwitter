@@ -1,28 +1,41 @@
+import time
+import os
 import openai
 import json
 import requests
 import pyshorteners
 from requests_oauthlib import OAuth1Session
 from datetime import datetime, timedelta
-import time
+
+from dotenv import load_dotenv
 
 
-CONSUMER_KEY = 'aKaxA2pCTDTeNH7Anm9qTdOCh'
-CONSUMER_SECRET = 'fY72ZU3wkkCDYvYkVQDWv66sV3x3T5PGT1ksiS1suR7gYYWypo'
-NEWS_API = '138ce02a63144ee5801244745fadde8a'
-OPENAI_API ='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'
 
+load_dotenv()  # Load API keys from .env file
+
+# Get the API keys from the environment variables
+CONSUMER_KEY = os.getenv("CONSUMER_KEY")
+CONSUMER_SECRET = os.getenv("CONSUMER_SECRET")
+NEWS_API = os.getenv("NEWS_API")
+OPENAI_API = os.getenv("OPENAI_API")
+
+# ------------------ URL Shortening ------------------
 
 def shorten_url(url):
     s = pyshorteners.Shortener()
     short_url = s.tinyurl.short(url)
     return short_url
 
+
+# ------------------ Headline Management ------------------
+
 def save_commented_headlines_to_file(commented_headlines):
+    """Save the list of commented headlines to a JSON file."""
     with open("commented_headlines.json", "w") as f:
         json.dump(commented_headlines, f)
 
 def load_commented_headlines_from_file():
+    """Load the list of commented headlines from a JSON file."""
     try:
         with open("commented_headlines.json", "r") as f:
             commented_headlines = json.load(f)
@@ -34,27 +47,36 @@ def load_commented_headlines_from_file():
 
 
 def is_headline_commented(headline):
+    """Check if a headline has already been commented."""
     commented_headlines = load_commented_headlines_from_file()
     return headline in commented_headlines
 
 def save_headline_as_commented(headline):
+    """Save a headline as commented by appending it to the list of commented headlines."""
     commented_headlines = load_commented_headlines_from_file()
     commented_headlines.append(headline)
     save_commented_headlines_to_file(commented_headlines)
 
 def load_access_tokens():
+    """Load access tokens from a JSON file."""
     with open("access_tokens.json", "r") as f:
         tokens = json.load(f)
     return tokens["access_token"], tokens["access_token_secret"]
 
 
 def save_access_tokens(access_token, access_token_secret):
+    """Save access tokens to a JSON file."""
     with open("access_tokens.json", "w") as f:
         json.dump({"access_token": access_token, "access_token_secret": access_token_secret}, f)
 
 
 
 def authenticate(consumer_key, consumer_secret):
+    """
+    Authenticate with Twitter API and return access tokens.
+
+    If access tokens are not available, perform the OAuth1.0a flow to obtain them.
+    """
     access_token, access_token_secret = load_access_tokens()
 
     if not access_token or not access_token_secret:
@@ -93,6 +115,11 @@ def authenticate(consumer_key, consumer_secret):
 
 
 def post_tweet(consumer_key, consumer_secret, access_token, access_token_secret, tweet_text):
+    """
+    Post a tweet using the Twitter API.
+
+    Raise an exception if the request returns an error.
+    """
     oauth = OAuth1Session(
         consumer_key,
         client_secret=consumer_secret,
@@ -112,6 +139,20 @@ def post_tweet(consumer_key, consumer_secret, access_token, access_token_secret,
 
 
 def get_latest_news(query, country='us', page_size=10):
+    """
+    Fetch the latest news articles based on the specified query and country.
+
+    Args:
+        query (str): The query to search for in the news articles.
+        country (str, optional): The country to fetch news articles from. Defaults to 'us'.
+        page_size (int, optional): The number of articles to fetch. Defaults to 10.
+
+    Raises:
+        Exception: If the request to the News API returns an error.
+
+    Returns:
+        list: A list of news articles as dictionaries.
+    """
     api_key = NEWS_API
     
     url = "https://newsapi.org/v2/top-headlines"
@@ -131,69 +172,97 @@ def get_latest_news(query, country='us', page_size=10):
     news_data = response.json()
     return news_data["articles"]
     
-def generate_comments(articles, model="text-davinci-002", max_tokens=50):
+def generate_comments(article, model="gpt-3.5-turbo", max_tokens=50, max_attempts=2):
+    # Set the OpenAI API key
     openai.api_key = OPENAI_API
 
-    comments = []
-    for article in articles:
-        headline = article["title"]
-        url = article["url"]
-        short_url = shorten_url(url)
+    # Initialize the number of attempts to 0
+    attempt_count = 0
 
-        prompt = f"Please write a tweet about these news. The tweet must be within the allowed character length for Twitter, \
-            be useful for my users, and attract users to subscribe to my Twitter account. In approximately 50% of the tweets, include a call to action \
-            encouraging users to subscribe to Chatocracy. Please include the shortened URL to the source, \
-            an appropriate hashtag (only one, to keep the tweet length in check), and relevant emojis such as 📰, 🗞️, 💡, or 🚀 or other appropriate emoji \
-            Write all tweets in the style of Pam Moore without repeating the headline itself in the tweet. \
-            Be creative and make a meaningful comment. Include a joke if it is appropriate and causes no harm. \
-            Here is the headline: '{headline}', and the short url: '{short_url}'"
+    # Extract the headline and URL from the article
+    headline = article["title"]
+    url = article["url"]
+    
+    # Get the shortened version of the URL
+    short_url = shorten_url(url)
 
-        while True:
-            response = openai.Completion.create(
-                engine=model,
-                prompt=prompt,
-                max_tokens=max_tokens,
-                n=1,
-                stop=None,
-                temperature=0.5,
-            )
+    # Construct the prompt for the AI model
+    prompt = f"Please write a tweet about these news. The tweet must be within the allowed character length for Twitter, \
+        be useful for my users, and attract users to subscribe to my Twitter account. In approximately 50% of the tweets, include a call to action \
+        encouraging users to subscribe to Chatocracy. Please include the shortened URL to the source (always uncut), \
+        an appropriate hashtag (only one, to keep the tweet length in check), and relevant emojis such as 📰, 🗞️, 💡, or 🚀 or other appropriate emoji \
+        Write all tweets in the style of Pam Moore without repeating the headline itself in the tweet. \
+        Be creative and make a meaningful comment. Include a joke if it is appropriate and causes no harm. \
+        URL must present in all tweets. \
+        The tweet length together with the short url must be less than 280 symbols \
+        Every tweet must start from the url this is obligatory \
+        Here is the headline: '{headline}', and the short url: '{short_url}'"
 
-            comment = response.choices[0].text.strip()
+    # Keep generating tweets until a valid tweet is created or maximum attempts exceeded
+    while attempt_count < max_attempts:
 
-            # Check if the generated tweet is within the allowed character limit
-            if len(comment) <= 280:
-                break
-            else:
-                max_tokens = max_tokens - 5  # Reduce max_tokens to generate a shorter tweet
+        # Call the OpenAI API to generate a tweet using the prompt
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[{"role": "system", "content": "You are a very creative AI assistant that helps users write tweets in Pam Moore Style."}, {"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            n=1,
+            stop=None,
+            temperature=0.5,
+        )
 
-        comments.append(comment)
+        # Extract the generated tweet from the response
+        comment = response.choices[0].message['content'].strip()
+        
+        # Remove the "1. " from the beginning of the tweet if present
+        comment = comment.replace("1. ", "", 1).replace("1) ", "", 1).replace("1)", "", 1).replace("1.", "", 1).replace('"', "", 1)
+        
+        # Check if the generated tweet is within the allowed character limit and contains the shortened URL
+        if len(comment) <= 280 and short_url in comment:
+            return comment
+        else:
+            # Increase the attempt count and reduce max_tokens to generate a shorter tweet
+            attempt_count += 1
+            max_tokens = max_tokens - 5
+    
+    # If the maximum attempts are exceeded and a valid tweet is not created, return None
+    return None
 
-    return comments
+
 
 if __name__ == "__main__":
+    # Set the news query to "politics"
     query = "politics"
     
-    # Authenticate and get access tokens
+    # Authenticate with Twitter and get access tokens
     access_token, access_token_secret = authenticate(CONSUMER_KEY, CONSUMER_SECRET)
-    
+    # Run the script indefinitely
     while True:
+        # Get the top political headlines
         top_political_headlines = get_latest_news(query)
-        comments = generate_comments(top_political_headlines)
-
-        for article, comment in zip(top_political_headlines, comments):
+        
+        # Iterate through the headlines and their corresponding comments
+        for article in top_political_headlines:
             headline = article["title"]
             
+            # Check if the headline has already been commented on
             if not is_headline_commented(headline):
+                # Generate comments for the headlines
+                comment = generate_comments(article)
+                
+                # Print the headline and the generated comment
                 print(f"Headline: {headline}")
                 print(f"Comment: {comment}")
                 print()
                 
-                # Post the tweet here
-                tweet = post_tweet(CONSUMER_KEY, CONSUMER_SECRET, access_token, access_token_secret, comment)
-                print('!!!')
-                save_headline_as_commented(headline)
+                if comment is not None:
+                    #Post the tweet with the generated comment
+                    tweet = post_tweet(CONSUMER_KEY, CONSUMER_SECRET, access_token, access_token_secret, comment)
+                    print('!!!------!!!')
+                    # Save the headline as commented
+                    save_headline_as_commented(headline)
                 
                 # Sleep for an hour before tweeting the next comment
-                time.sleep(3600)
+                time.sleep(1800)
         # Sleep for an hour before fetching the next portion of news
         time.sleep(3600)

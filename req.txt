@@ -17,3 +17,4 @@ tweepy==4.13.0
 urllib3==1.26.15
 yarl==1.8.2
 pyshorteners==1.0.1
+python-dotenv==1.0.0
