@@ -1,4 +1,6 @@
-venv/
-.env
+# exclude access tokens and commented headlines from Git
 access_tokens.json
 commented_headlines.json
+#exclude env and venv
+venv/
+.env
