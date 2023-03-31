@@ -31,13 +31,13 @@ def shorten_url(url):
 
 def save_commented_headlines_to_file(commented_headlines):
     """Save the list of commented headlines to a JSON file."""
-    with open("commented_headlines.json", "w") as f:
+    with open("tokens/commented_headlines.json", "w") as f:
         json.dump(commented_headlines, f)
 
 def load_commented_headlines_from_file():
     """Load the list of commented headlines from a JSON file."""
     try:
-        with open("commented_headlines.json", "r") as f:
+        with open("tokens/commented_headlines.json", "r") as f:
             commented_headlines = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         print('here')
@@ -59,14 +59,14 @@ def save_headline_as_commented(headline):
 
 def load_access_tokens():
     """Load access tokens from a JSON file."""
-    with open("access_tokens.json", "r") as f:
+    with open("tokens/access_tokens.json", "r") as f:
         tokens = json.load(f)
     return tokens["access_token"], tokens["access_token_secret"]
 
 
 def save_access_tokens(access_token, access_token_secret):
     """Save access tokens to a JSON file."""
-    with open("access_tokens.json", "w") as f:
+    with open("tokens/access_tokens.json", "w") as f:
         json.dump({"access_token": access_token, "access_token_secret": access_token_secret}, f)
 
 

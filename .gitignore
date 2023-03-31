@@ -3,5 +3,6 @@ access_tokens.json
 commented_headlines.json
 #exclude env and venv
 venv/
+tokens/
 .env
 access_tokens.json
