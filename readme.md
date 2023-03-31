@@ -24,7 +24,7 @@ CONSUMER_SECRET=<your_consumer_secret_here>
 NEWS_API=<your_news_api_key_here>
 OPENAI_API=<your_openai_api_key_here>
 
-    Run the script using python tweet_generator.py.
+    Run the script using python tweet.py.
 
 Credits
 
