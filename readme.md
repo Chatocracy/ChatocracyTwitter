@@ -15,7 +15,7 @@ A Python script that generates and posts tweets about the latest political news 
 ## Installation
 
 1. Clone the repository to your local machine.
-2. Install the required packages by running `pip install -r requirements.txt`.
+2. Install the required packages by running `pip install -r req.txt`.
 3. Create a `.env` file in the root directory of the project and add your API keys to it as follows:
 
 CONSUMER_KEY=<your_consumer_key_here>
