@@ -172,7 +172,7 @@ def get_latest_news(query, country='us', page_size=10):
     news_data = response.json()
     return news_data["articles"]
     
-def generate_comments(article, model="gpt-3.5-turbo", max_tokens=50, max_attempts=2):
+def generate_comments(article, model="gpt-3.5-turbo", max_tokens=60, max_attempts=3):
     # Set the OpenAI API key
     openai.api_key = OPENAI_API
 
@@ -197,6 +197,7 @@ def generate_comments(article, model="gpt-3.5-turbo", max_tokens=50, max_attempt
         The tweet length together with the short url must be less than 280 symbols \
         Every tweet must start from the url this is obligatory \
         Here is the headline: '{headline}', and the short url: '{short_url}'"
+
 
     # Keep generating tweets until a valid tweet is created or maximum attempts exceeded
     while attempt_count < max_attempts:
