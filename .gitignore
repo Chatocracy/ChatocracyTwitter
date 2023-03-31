@@ -4,3 +4,4 @@ commented_headlines.json
 #exclude env and venv
 venv/
 .env
+access_tokens.json
