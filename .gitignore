@@ -1,2 +1,4 @@
 venv/
 .env
+access_tokens.json
+commented_headlines.json
