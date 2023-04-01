@@ -264,6 +264,6 @@ if __name__ == "__main__":
                     save_headline_as_commented(headline)
                 
                 # Sleep for an hour before tweeting the next comment
-                time.sleep(1800)
+                time.sleep(7200)
         # Sleep for an hour before fetching the next portion of news
-        time.sleep(3600)
+        time.sleep(7200)
